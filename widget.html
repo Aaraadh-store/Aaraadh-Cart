@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AARAADH Product Embed Widget</title>
+  <style>
+    :root {
+      --bg-color: #0D0D0D;
+      --card-bg: #181818;
+      --accent-gold: #D4AF37;
+      --accent-gold-light: #F3E5AB;
+      --text-white: #FFFFFF;
+      --text-muted: #A0A0A0;
+      --border-color: #262626;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-white);
+      font-family: var(--font-family);
+      padding: 12px;
+      overflow: hidden;
+    }
+
+    .widget-container {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 16px;
+      max-width: 100%;
+    }
+
+    .price-tag {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent-gold-light);
+      margin-bottom: 12px;
+    }
+
+    .section-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      display: block;
+    }
+
+    .options-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 14px;
+    }
+
+    .opt-btn {
+      background: #000000;
+      border: 1px solid var(--border-color);
+      color: var(--text-white);
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .opt-btn.selected {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
+      background: rgba(212, 175, 55, 0.1);
+      font-weight: 600;
+    }
+
+    .qty-picker {
+      display: inline-flex;
+      align-items: center;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: #000000;
+      margin-bottom: 16px;
+    }
+
+    .qty-btn {
+      background: none;
+      border: none;
+      color: var(--text-white);
+      padding: 6px 12px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .qty-val {
+      padding: 0 8px;
+      font-size: 0.9rem;
+      font-weight: bold;
+    }
+
+    .btn-add {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent-gold);
+      color: #000000;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .btn-add:hover { background: var(--accent-gold-light); }
+    .btn-add:disabled { background: #333333; color: #666666; cursor: not-allowed; }
+
+    #status-msg {
+      font-size: 0.8rem;
+      text-align: center;
+      margin-top: 8px;
+      color: var(--accent-gold);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="widget-container">
+    <div class="price-tag" id="prod-price">₹--</div>
+
+    <span class="section-label">Available Colors</span>
+    <div class="options-group" id="colors-group"></div>
+
+    <span class="section-label">Available Sizes</span>
+    <div class="options-group" id="sizes-group"></div>
+
+    <span class="section-label">Quantity</span>
+    <div class="qty-picker">
+      <button class="qty-btn" onclick="updateQty(-1)">-</button>
+      <span class="qty-val" id="qty-val">1</span>
+      <button class="qty-btn" onclick="updateQty(1)">+</button>
+    </div>
+
+    <button class="btn-add" id="add-btn" onclick="addToBag()" disabled>Loading...</button>
+    <div id="status-msg">Added to Bag!</div>
+  </div>
+
+  <script>
+    // Configuration: Replace with your Published Google Sheet CSV URL for "Products" tab
+    const SHEET_CSV_URL = 'YOUR_PUBLISHED_PRODUCTS_CSV_URL_HERE';
+
+    let productData = null;
+    let selectedColor = null;
+    let selectedSize = null;
+    let quantity = 1;
+
+    // Get URL Parameters (e.g. widget.html?sku=U-OS-220-ZOD-LEO)
+    const urlParams = new URLSearchParams(window.location.search);
+    const targetSku = urlParams.get('sku');
+
+    async function loadProductData() {
+      if (!targetSku) {
+        document.getElementById('add-btn').innerText = 'SKU Missing';
+        return;
+      }
+
+      try {
+        const response = await fetch(SHEET_CSV_URL);
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+        
+        // Match header columns based on your sheet schema
+        const headers = rows[0].map(h => h.trim().toLowerCase());
+        const skuIdx = headers.indexOf('sku');
+        const nameIdx = headers.indexOf('product name');
+        const priceIdx = headers.indexOf('price');
+        const colorsIdx = headers.indexOf('available colours');
+        const sizesIdx = headers.indexOf('available sizes');
+        const allowCouponIdx = headers.indexOf('allow coupon');
+        const statusIdx = headers.indexOf('status');
+
+        const matchingRow = rows.find(r => r[skuIdx] && r[skuIdx].trim() === targetSku);
+
+        if (!matchingRow) {
+          document.getElementById('add-btn').innerText = 'Product Not Found';
+          return;
+        }
+
+        productData = {
+          sku: matchingRow[skuIdx].trim(),
+          title: matchingRow[nameIdx].trim(),
+          price: parseFloat(matchingRow[priceIdx].trim()),
+          colors: matchingRow[colorsIdx].split(',').map(s => s.trim()),
+          sizes: matchingRow[sizesIdx].split(',').map(s => s.trim()),
+          allowCoupon: matchingRow[allowCouponIdx].trim().toUpperCase() === 'YES',
+          status: matchingRow[statusIdx].trim().toUpperCase()
+        };
+
+        renderWidgetUI();
+      } catch (err) {
+        console.error('Error fetching Sheet data:', err);
+        document.getElementById('add-btn').innerText = 'Error Loading Item';
+      }
+    }
+
+    function renderWidgetUI() {
+      document.getElementById('prod-price').innerText = `₹${productData.price}`;
+
+      // Build Colors
+      const colorsContainer = document.getElementById('colors-group');
+      colorsContainer.innerHTML = '';
+      productData.colors.forEach((col, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `opt-btn ${idx === 0 ? 'selected' : ''}`;
+        btn.innerText = col;
+        btn.onclick = () => selectOption('color', col, btn);
+        colorsContainer.appendChild(btn);
+      });
+      selectedColor = productData.colors[0];
+
+      // Build Sizes
+      const sizesContainer = document.getElementById('sizes-group');
+      sizesContainer.innerHTML = '';
+      productData.sizes.forEach((sz, idx) => {
+        const btn = document.createElement('button');
+        btn.className = `opt-btn ${idx === 0 ? 'selected' : ''}`;
+        btn.innerText = sz;
+        btn.onclick = () => selectOption('size', sz, btn);
+        sizesContainer.appendChild(btn);
+      });
+      selectedSize = productData.sizes[0];
+
+      // Handle Stock Status
+      const addBtn = document.getElementById('add-btn');
+      if (productData.status === 'ACTIVE') {
+        addBtn.innerText = 'ADD TO BAG';
+        addBtn.disabled = false;
+      } else {
+        addBtn.innerText = 'SOLD OUT';
+        addBtn.disabled = true;
+      }
+    }
+
+    function selectOption(type, val, element) {
+      const parent = element.parentElement;
+      Array.from(parent.children).forEach(c => c.classList.remove('selected'));
+      element.classList.add('selected');
+
+      if (type === 'color') selectedColor = val;
+      if (type === 'size') selectedSize = val;
+    }
+
+    function updateQty(delta) {
+      quantity = Math.max(1, quantity + delta);
+      document.getElementById('qty-val').innerText = quantity;
+    }
+
+    function addToBag() {
+      const cartItem = {
+        sku: productData.sku,
+        title: productData.title,
+        price: productData.price,
+        color: selectedColor,
+        size: selectedSize,
+        qty: quantity,
+        allowCoupon: productData.allowCoupon
+      };
+
+      // Save to centralized Vercel Domain Storage
+      let cart = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
+      
+      // Check if same SKU, Size, and Color already exist in cart
+      const existingIndex = cart.findIndex(i => i.sku === cartItem.sku && i.size === cartItem.size && i.color === cartItem.color);
+      if (existingIndex > -1) {
+        cart[existingIndex].qty += cartItem.qty;
+      } else {
+        cart.push(cartItem);
+      }
+
+      localStorage.setItem('aaraadh_cart_items', JSON.stringify(cart));
+
+      // Notify parent Google Sites window if embedded
+      window.parent.postMessage({ type: 'AARAADH_CART_UPDATED', cartLength: cart.length }, '*');
+
+      // Visual Feedback
+      const statusMsg = document.getElementById('status-msg');
+      statusMsg.style.display = 'block';
+      setTimeout(() => statusMsg.style.display = 'none', 2000);
+    }
+
+    // Basic CSV Parser for Google Sheets Output
+    function parseCSV(text) {
+      let p = '', c = '', r = [];
+      let q = false;
+      let row = [''];
+      for (let i = 0; i < text.length; i++) {
+        c = text[i];
+        let next = text[i+1];
+        if (c === '"') {
+          if (q && next === '"') { row[row.length - 1] += '"'; i++; }
+          else { q = !q; }
+        } else if (c === ',' && !q) {
+          row.push('');
+        } else if ((c === '\r' || c === '\n') && !q) {
+          if (c === '\r' && next === '\n') { i++; }
+          r.push(row);
+          row = [''];
+        } else {
+          row[row.length - 1] += c;
+        }
+      }
+      if (row.length > 1 || row[0] !== '') r.push(row);
+      return r;
+    }
+
+    window.onload = loadProductData;
+  </script>
+</body>
+</html>
