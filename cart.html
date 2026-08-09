@@ -310,7 +310,7 @@
       }
     }
 
-    async function handleCheckout(e) {
+    function handleCheckout(e) {
       e.preventDefault();
 
       if (cartItems.length === 0) {
@@ -320,7 +320,7 @@
 
       const submitBtn = document.querySelector('.btn-submit');
       submitBtn.disabled = true;
-      submitBtn.innerText = 'Processing Order...';
+      submitBtn.innerText = 'Submitting Order...';
 
       const fileInput = document.getElementById('screenshot-file');
       const file = fileInput.files[0];
@@ -334,15 +334,16 @@
 
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = async function () {
+      reader.onload = function () {
         const base64Data = reader.result;
         const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+        const customerEmail = document.getElementById('cust-email').value.trim();
 
         const payload = {
           orderId: orderId,
           name: document.getElementById('cust-name').value.trim(),
           phone: document.getElementById('cust-phone').value.trim(),
-          email: document.getElementById('cust-email').value.trim(),
+          email: customerEmail,
           addr1: document.getElementById('cust-addr1').value.trim(),
           addr2: document.getElementById('cust-addr2').value.trim(),
           pincode: document.getElementById('cust-pincode').value.trim(),
@@ -359,30 +360,45 @@
           fileData: base64Data
         };
 
-        try {
-          const response = await fetch(APPS_SCRIPT_URL, {
-            method: 'POST',
-            body: JSON.stringify(payload)
-          });
-
-          const resData = await response.json();
-
-          if (resData.result === 'success') {
-            localStorage.removeItem('aaraadh_cart_items');
-            alert(`Order Placed Successfully!\n\nOrder ID: ${orderId}\nWe will verify your payment and update you shortly.`);
-            window.location.reload();
-          } else {
-            alert('There was an error saving your order. Please try again.');
-            submitBtn.disabled = false;
-            submitBtn.innerText = 'Confirm & Place Order';
-          }
-        } catch (error) {
+        fetch(APPS_SCRIPT_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: {
+            'Content-Type': 'text/plain;charset=utf-8'
+          },
+          body: JSON.stringify(payload)
+        })
+        .then(() => showThankYouScreen(orderId, customerEmail))
+        .catch((error) => {
           console.error('Submission Error:', error);
-          alert('Order submitted! Verification in progress.');
-          localStorage.removeItem('aaraadh_cart_items');
-          window.location.reload();
-        }
+          showThankYouScreen(orderId, customerEmail);
+        });
       };
+    }
+
+    function showThankYouScreen(orderId, email) {
+      localStorage.removeItem('aaraadh_cart_items');
+
+      const cartContainer = document.querySelector('.cart-container');
+      cartContainer.innerHTML = `
+        <div style="text-align: center; padding: 20px 10px;">
+          <div style="font-size: 3.5rem; color: #D4AF37; margin-bottom: 12px; line-height: 1;">✓</div>
+          <h2 style="color: #D4AF37; margin-bottom: 8px; letter-spacing: 1px;">THANK YOU FOR ORDERING AT AARAADH</h2>
+          <p style="color: #FFF; font-size: 0.95rem; margin-bottom: 20px;">Your order has been successfully submitted and is under review.</p>
+          
+          <div style="background: #111; border: 1px solid #262626; padding: 18px; border-radius: 8px; margin-bottom: 24px; text-align: left;">
+            <p style="color: #A0A0A0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Order Reference ID</p>
+            <p style="color: #F3E5AB; font-weight: bold; font-size: 1.2rem; margin-bottom: 12px;">${orderId}</p>
+            
+            <p style="color: #A0A0A0; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;">Order Verification</p>
+            <p style="color: #FFF; font-size: 0.85rem; margin-top: 4px; line-height: 1.4;">
+              We are verifying your transaction UTR and payment screenshot. Contact details recorded: <strong style="color: #D4AF37;">${email}</strong>.
+            </p>
+          </div>
+
+          <a href="index.html" class="btn-upi" style="display: block; text-decoration: none; margin-top: 10px;">Continue Shopping</a>
+        </div>
+      `;
     }
 
     function parseCSV(text) {
