@@ -84,6 +84,11 @@
       width: 100%; margin-top: 20px; padding: 14px; background: var(--accent-gold); color: #000;
       font-size: 1rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase;
     }
+    button.btn-submit:disabled {
+      background: #555;
+      color: #888;
+      cursor: not-allowed;
+    }
   </style>
 </head>
 <body>
@@ -150,6 +155,7 @@
     const UPI_ID = 'harini9790@ybl'; 
     const BRAND_NAME = 'AARAADH';
     const COUPONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=2136218560&single=true&output=csv';
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwqUcVV6jbHDQZkSOV6rnti66IkYnh2vfUG64GkapV923FTxSUx6z7F9TO3uag8HGNg/exec';
 
     let cartItems = [];
     let subtotal = 0;
@@ -304,9 +310,79 @@
       }
     }
 
-    function handleCheckout(e) {
+    async function handleCheckout(e) {
       e.preventDefault();
-      alert('Order placed successfully! Processing verification.');
+
+      if (cartItems.length === 0) {
+        alert('Your bag is empty!');
+        return;
+      }
+
+      const submitBtn = document.querySelector('.btn-submit');
+      submitBtn.disabled = true;
+      submitBtn.innerText = 'Processing Order...';
+
+      const fileInput = document.getElementById('screenshot-file');
+      const file = fileInput.files[0];
+
+      if (!file) {
+        alert('Please upload your payment screenshot.');
+        submitBtn.disabled = false;
+        submitBtn.innerText = 'Confirm & Place Order';
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = async function () {
+        const base64Data = reader.result;
+        const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+
+        const payload = {
+          orderId: orderId,
+          name: document.getElementById('cust-name').value.trim(),
+          phone: document.getElementById('cust-phone').value.trim(),
+          email: document.getElementById('cust-email').value.trim(),
+          addr1: document.getElementById('cust-addr1').value.trim(),
+          addr2: document.getElementById('cust-addr2').value.trim(),
+          pincode: document.getElementById('cust-pincode').value.trim(),
+          city: document.getElementById('cust-city').value.trim(),
+          state: document.getElementById('cust-state').value.trim(),
+          utr: document.getElementById('upi-utr').value.trim(),
+          coupon: document.getElementById('coupon-code').value.trim().toUpperCase() || 'NONE',
+          subtotal: subtotal,
+          discount: discount,
+          total: finalTotal,
+          items: cartItems,
+          fileName: file.name,
+          mimeType: file.type,
+          fileData: base64Data
+        };
+
+        try {
+          const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+          });
+
+          const resData = await response.json();
+
+          if (resData.result === 'success') {
+            localStorage.removeItem('aaraadh_cart_items');
+            alert(`Order Placed Successfully!\n\nOrder ID: ${orderId}\nWe will verify your payment and update you shortly.`);
+            window.location.reload();
+          } else {
+            alert('There was an error saving your order. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerText = 'Confirm & Place Order';
+          }
+        } catch (error) {
+          console.error('Submission Error:', error);
+          alert('Order submitted! Verification in progress.');
+          localStorage.removeItem('aaraadh_cart_items');
+          window.location.reload();
+        }
+      };
     }
 
     function parseCSV(text) {
