@@ -149,15 +149,13 @@
   </div>
 
   <script>
-    // Configuration: Replace with your Published Google Sheet CSV URL for "Products" tab
-    const SHEET_CSV_URL = 'YOUR_PUBLISHED_PRODUCTS_CSV_URL_HERE';
+    const SHEET_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=0&single=true&output=csv';
 
     let productData = null;
     let selectedColor = null;
     let selectedSize = null;
     let quantity = 1;
 
-    // Get URL Parameters (e.g. widget.html?sku=U-OS-220-ZOD-LEO)
     const urlParams = new URLSearchParams(window.location.search);
     const targetSku = urlParams.get('sku');
 
@@ -172,7 +170,6 @@
         const csvText = await response.text();
         const rows = parseCSV(csvText);
         
-        // Match header columns based on your sheet schema
         const headers = rows[0].map(h => h.trim().toLowerCase());
         const skuIdx = headers.indexOf('sku');
         const nameIdx = headers.indexOf('product name');
@@ -209,7 +206,6 @@
     function renderWidgetUI() {
       document.getElementById('prod-price').innerText = `₹${productData.price}`;
 
-      // Build Colors
       const colorsContainer = document.getElementById('colors-group');
       colorsContainer.innerHTML = '';
       productData.colors.forEach((col, idx) => {
@@ -221,7 +217,6 @@
       });
       selectedColor = productData.colors[0];
 
-      // Build Sizes
       const sizesContainer = document.getElementById('sizes-group');
       sizesContainer.innerHTML = '';
       productData.sizes.forEach((sz, idx) => {
@@ -233,7 +228,6 @@
       });
       selectedSize = productData.sizes[0];
 
-      // Handle Stock Status
       const addBtn = document.getElementById('add-btn');
       if (productData.status === 'ACTIVE') {
         addBtn.innerText = 'ADD TO BAG';
@@ -269,10 +263,8 @@
         allowCoupon: productData.allowCoupon
       };
 
-      // Save to centralized Vercel Domain Storage
       let cart = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
       
-      // Check if same SKU, Size, and Color already exist in cart
       const existingIndex = cart.findIndex(i => i.sku === cartItem.sku && i.size === cartItem.size && i.color === cartItem.color);
       if (existingIndex > -1) {
         cart[existingIndex].qty += cartItem.qty;
@@ -281,17 +273,13 @@
       }
 
       localStorage.setItem('aaraadh_cart_items', JSON.stringify(cart));
-
-      // Notify parent Google Sites window if embedded
       window.parent.postMessage({ type: 'AARAADH_CART_UPDATED', cartLength: cart.length }, '*');
 
-      // Visual Feedback
       const statusMsg = document.getElementById('status-msg');
       statusMsg.style.display = 'block';
       setTimeout(() => statusMsg.style.display = 'none', 2000);
     }
 
-    // Basic CSV Parser for Google Sheets Output
     function parseCSV(text) {
       let p = '', c = '', r = [];
       let q = false;
