@@ -56,10 +56,29 @@
     }
 
     form label { display: block; margin: 12px 0 4px; font-size: 0.8rem; color: var(--text-muted); }
-    form input, form textarea {
+    form input {
       width: 100%; padding: 10px; background: #000; border: 1px solid var(--border-color); color: #fff; border-radius: 6px; outline: none;
     }
-    form input:focus, form textarea:focus { border-color: var(--accent-gold); }
+    form input:focus { border-color: var(--accent-gold); }
+
+    .phone-wrapper {
+      display: flex;
+      align-items: center;
+      background: #000;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+    }
+    .phone-prefix {
+      padding: 10px 0 10px 10px;
+      color: var(--accent-gold);
+      font-weight: bold;
+      font-size: 0.9rem;
+      user-select: none;
+    }
+    .phone-wrapper input {
+      border: none;
+      background: transparent;
+    }
 
     button.btn-submit {
       width: 100%; margin-top: 20px; padding: 14px; background: var(--accent-gold); color: #000;
@@ -75,7 +94,7 @@
     <div class="cart-items-list" id="cart-items-container"></div>
 
     <div class="coupon-box">
-      <input type="text" id="coupon-code" placeholder="ENTER COUPON CODE">
+      <input type="text" id="coupon-code" placeholder="ENTER COUPON CODE" maxlength="40">
       <button class="btn-apply" onclick="applyCoupon()">APPLY</button>
     </div>
     <div id="coupon-msg" style="font-size: 0.8rem; margin-bottom: 10px;"></div>
@@ -90,19 +109,37 @@
     </div>
 
     <form id="checkout-form" onsubmit="handleCheckout(event)">
-      <label>Full Name</label>
-      <input type="text" id="cust-name" required placeholder="Your Name">
+      <label>Billing Name *</label>
+      <input type="text" id="cust-name" required placeholder="Full Name" maxlength="40">
 
-      <label>WhatsApp Number</label>
-      <input type="tel" id="cust-phone" required placeholder="10-digit Mobile Number">
+      <label>Phone Number *</label>
+      <div class="phone-wrapper">
+        <span class="phone-prefix">+91</span>
+        <input type="tel" id="cust-phone" required placeholder="10-digit Mobile Number" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+      </div>
 
-      <label>Shipping Address</label>
-      <textarea id="cust-address" rows="3" required placeholder="Complete Delivery Address"></textarea>
+      <label>Email ID *</label>
+      <input type="email" id="cust-email" required placeholder="yourname@domain.com" maxlength="40">
 
-      <label>12-digit UPI UTR / Transaction ID</label>
-      <input type="text" id="upi-utr" required placeholder="e.g. 423189075123" maxlength="12">
+      <label>Address Line 1 *</label>
+      <input type="text" id="cust-addr1" required placeholder="House/Flat No., Street, Area" maxlength="40">
 
-      <label>Upload Payment Screenshot</label>
+      <label>Address Line 2</label>
+      <input type="text" id="cust-addr2" placeholder="Landmark, Locality (Optional)" maxlength="40">
+
+      <label>Pincode *</label>
+      <input type="text" id="cust-pincode" required placeholder="6-digit Pincode" maxlength="6" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+      <label>City *</label>
+      <input type="text" id="cust-city" required placeholder="City" maxlength="40">
+
+      <label>State *</label>
+      <input type="text" id="cust-state" required placeholder="State" maxlength="40">
+
+      <label>12-digit UPI UTR / Transaction ID *</label>
+      <input type="text" id="upi-utr" required placeholder="e.g. 423189075123" maxlength="12" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+
+      <label>Upload Payment Screenshot *</label>
       <input type="file" id="screenshot-file" accept="image/*" required>
 
       <button type="submit" class="btn-submit">Confirm & Place Order</button>
@@ -110,7 +147,7 @@
   </div>
 
   <script>
-    const UPI_ID = 'yourupiid@upi'; // Replace with your actual UPI ID
+    const UPI_ID = 'yourupiid@upi'; 
     const BRAND_NAME = 'AARAADH';
     const COUPONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=2136218560&single=true&output=csv';
 
