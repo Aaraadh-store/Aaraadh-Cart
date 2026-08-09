@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AARAADH — Cart & Checkout</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --bg-color: #0D0D0D;
+      --card-bg: #181818;
+      --accent-gold: #D4AF37;
+      --accent-gold-light: #F3E5AB;
+      --text-white: #FFFFFF;
+      --text-muted: #A0A0A0;
+      --border-color: #262626;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: var(--bg-color); color: var(--text-white); font-family: var(--font-family); padding: 16px; }
+
+    .cart-container {
+      max-width: 500px;
+      margin: 10px auto;
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+    }
+
+    h2 { color: var(--accent-gold); font-size: 1.3rem; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; text-align: center; }
+
+    .cart-items-list { border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 12px; }
+    .cart-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 0.9rem; }
+    .item-meta { display: flex; flex-direction: column; }
+    .item-title { font-weight: 600; color: #FFF; }
+    .item-sub { font-size: 0.8rem; color: var(--text-muted); }
+    .remove-btn { color: #FF4D4D; cursor: pointer; font-size: 0.8rem; margin-left: 8px; }
+
+    .coupon-box { display: flex; gap: 8px; margin: 16px 0; }
+    .coupon-box input { flex: 1; padding: 10px; background: #000; border: 1px solid var(--border-color); color: #FFF; border-radius: 6px; text-transform: uppercase; }
+    .btn-apply { background: var(--accent-gold); color: #000; border: none; padding: 0 16px; font-weight: bold; border-radius: 6px; cursor: pointer; }
+
+    .summary-row { display: flex; justify-content: space-between; font-size: 0.9rem; margin-bottom: 6px; color: var(--text-muted); }
+    .summary-row.total { font-weight: bold; font-size: 1.1rem; color: var(--accent-gold-light); border-top: 1px dashed var(--border-color); padding-top: 10px; margin-top: 10px; }
+
+    .payment-area { text-align: center; margin: 20px 0; padding: 15px; background: #111; border-radius: 8px; border: 1px solid var(--border-color); }
+    #qrcode { display: inline-block; padding: 10px; background: #fff; border-radius: 8px; margin-top: 10px; }
+    
+    .btn-upi {
+      display: block; width: 100%; padding: 12px; margin: 8px 0; background: var(--accent-gold); color: #000;
+      font-weight: bold; text-decoration: none; border-radius: 6px; text-align: center; text-transform: uppercase;
+    }
+
+    form label { display: block; margin: 12px 0 4px; font-size: 0.8rem; color: var(--text-muted); }
+    form input, form textarea {
+      width: 100%; padding: 10px; background: #000; border: 1px solid var(--border-color); color: #fff; border-radius: 6px; outline: none;
+    }
+    form input:focus, form textarea:focus { border-color: var(--accent-gold); }
+
+    button.btn-submit {
+      width: 100%; margin-top: 20px; padding: 14px; background: var(--accent-gold); color: #000;
+      font-size: 1rem; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; text-transform: uppercase;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="cart-container">
+    <h2>Your AARAADH Bag</h2>
+
+    <div class="cart-items-list" id="cart-items-container"></div>
+
+    <div class="coupon-box">
+      <input type="text" id="coupon-code" placeholder="ENTER COUPON CODE">
+      <button class="btn-apply" onclick="applyCoupon()">APPLY</button>
+    </div>
+    <div id="coupon-msg" style="font-size: 0.8rem; margin-bottom: 10px;"></div>
+
+    <div class="summary-row"><span>Subtotal:</span><span id="subtotal-val">₹0</span></div>
+    <div class="summary-row"><span>Discount:</span><span id="discount-val">-₹0</span></div>
+    <div class="summary-row total"><span>Total Payable:</span><span id="total-val">₹0</span></div>
+
+    <div class="payment-area">
+      <p style="font-size: 0.85rem; color: var(--text-muted);">SCAN OR TAP TO PAY EXACT AMOUNT</p>
+      <div id="payment-widget"></div>
+    </div>
+
+    <form id="checkout-form" onsubmit="handleCheckout(event)">
+      <label>Full Name</label>
+      <input type="text" id="cust-name" required placeholder="Your Name">
+
+      <label>WhatsApp Number</label>
+      <input type="tel" id="cust-phone" required placeholder="10-digit Mobile Number">
+
+      <label>Shipping Address</label>
+      <textarea id="cust-address" rows="3" required placeholder="Complete Delivery Address"></textarea>
+
+      <label>12-digit UPI UTR / Transaction ID</label>
+      <input type="text" id="upi-utr" required placeholder="e.g. 423189075123" maxlength="12">
+
+      <label>Upload Payment Screenshot</label>
+      <input type="file" id="screenshot-file" accept="image/*" required>
+
+      <button type="submit" class="btn-submit">Confirm & Place Order</button>
+    </form>
+  </div>
+
+  <script>
+    const UPI_ID = 'yourupiid@upi'; // Replace with your actual UPI ID
+    const BRAND_NAME = 'AARAADH';
+    const COUPONS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=2136218560&single=true&output=csv';
+
+    let cartItems = [];
+    let subtotal = 0;
+    let discount = 0;
+    let finalTotal = 0;
+
+    function renderCart() {
+      cartItems = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
+      const container = document.getElementById('cart-items-container');
+      container.innerHTML = '';
+
+      if (cartItems.length === 0) {
+        container.innerHTML = '<p style="text-align:center; color:#A0A0A0; padding:20px;">Your bag is empty.</p>';
+        updateTotals();
+        return;
+      }
+
+      subtotal = 0;
+      cartItems.forEach((item, index) => {
+        const itemTotal = item.price * item.qty;
+        subtotal += itemTotal;
+
+        const row = document.createElement('div');
+        row.className = 'cart-item';
+        row.innerHTML = `
+          <div class="item-meta">
+            <span class="item-title">${item.title}</span>
+            <span class="item-sub">Color: ${item.color} | Size: ${item.size} | Qty: ${item.qty}</span>
+          </div>
+          <div>
+            <span>₹${itemTotal}</span>
+            <span class="remove-btn" onclick="removeItem(${index})">✕</span>
+          </div>
+        `;
+        container.appendChild(row);
+      });
+
+      updateTotals();
+    }
+
+    function removeItem(index) {
+      cartItems.splice(index, 1);
+      localStorage.setItem('aaraadh_cart_items', JSON.stringify(cartItems));
+      renderCart();
+    }
+
+    function updateTotals() {
+      finalTotal = Math.max(0, subtotal - discount);
+      document.getElementById('subtotal-val').innerText = `₹${subtotal}`;
+      document.getElementById('discount-val').innerText = `-₹${discount}`;
+      document.getElementById('total-val').innerText = `₹${finalTotal}`;
+
+      initPaymentUI();
+    }
+
+    function initPaymentUI() {
+      const widgetContainer = document.getElementById('payment-widget');
+      if (finalTotal <= 0) {
+        widgetContainer.innerHTML = '<p style="font-size:0.8rem; color:#A0A0A0;">Add items to load payment</p>';
+        return;
+      }
+
+      const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
+      const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${BRAND_NAME}&am=${finalTotal}&cu=INR&tn=${orderId}`;
+      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+      if (isMobile) {
+        widgetContainer.innerHTML = `<a href="${upiUrl}" class="btn-upi">Pay ₹${finalTotal} via GPay / PhonePe / Paytm</a>`;
+      } else {
+        widgetContainer.innerHTML = `<div id="qrcode"></div><p style="margin-top:8px; font-size:0.8rem; color:#A0A0A0;">Scan using GPay / PhonePe</p>`;
+        new QRCode(document.getElementById("qrcode"), {
+          text: upiUrl,
+          width: 150,
+          height: 150,
+          colorDark: "#000000",
+          colorLight: "#ffffff"
+        });
+      }
+    }
+
+    async function applyCoupon() {
+      const inputCode = document.getElementById('coupon-code').value.trim().toUpperCase();
+      const msg = document.getElementById('coupon-msg');
+
+      if (!inputCode) {
+        msg.style.color = '#FF4D4D';
+        msg.innerText = 'Please enter a coupon code.';
+        return;
+      }
+
+      msg.style.color = '#A0A0A0';
+      msg.innerText = 'Validating code...';
+
+      try {
+        const response = await fetch(COUPONS_CSV_URL);
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+        
+        const headers = rows[0].map(h => h.trim().toLowerCase());
+        const codeIdx = headers.indexOf('coupon code');
+        const typeIdx = headers.indexOf('discount type');
+        const valueIdx = headers.indexOf('value');
+        const statusIdx = headers.indexOf('status');
+        const minSpendIdx = headers.indexOf('min spend');
+
+        const matchingRow = rows.find(r => r[codeIdx] && r[codeIdx].trim().toUpperCase() === inputCode);
+
+        if (!matchingRow) {
+          msg.style.color = '#FF4D4D';
+          msg.innerText = 'Invalid Coupon Code';
+          discount = 0;
+          updateTotals();
+          return;
+        }
+
+        const status = matchingRow[statusIdx] ? matchingRow[statusIdx].trim().toUpperCase() : 'INACTIVE';
+        const minSpend = parseFloat(matchingRow[minSpendIdx] || '0');
+
+        if (status !== 'ACTIVE') {
+          msg.style.color = '#FF4D4D';
+          msg.innerText = 'This coupon has expired or is inactive.';
+          discount = 0;
+          updateTotals();
+          return;
+        }
+
+        if (subtotal < minSpend) {
+          msg.style.color = '#FF4D4D';
+          msg.innerText = `Minimum order of ₹${minSpend} required for this code.`;
+          discount = 0;
+          updateTotals();
+          return;
+        }
+
+        const discType = matchingRow[typeIdx].trim().toUpperCase();
+        const discValue = parseFloat(matchingRow[valueIdx]);
+
+        if (discType === 'PERCENTAGE') {
+          discount = Math.round(subtotal * (discValue / 100));
+        } else if (discType === 'FLAT') {
+          discount = discValue;
+        }
+
+        msg.style.color = '#D4AF37';
+        msg.innerText = `Coupon ${inputCode} applied! Saved ₹${discount}`;
+        updateTotals();
+
+      } catch (err) {
+        console.error('Coupon fetch error:', err);
+        msg.style.color = '#FF4D4D';
+        msg.innerText = 'Error validating coupon. Please try again.';
+      }
+    }
+
+    function handleCheckout(e) {
+      e.preventDefault();
+      alert('Order placed successfully! Processing verification.');
+    }
+
+    function parseCSV(text) {
+      let p = '', c = '', r = [];
+      let q = false;
+      let row = [''];
+      for (let i = 0; i < text.length; i++) {
+        c = text[i];
+        let next = text[i+1];
+        if (c === '"') {
+          if (q && next === '"') { row[row.length - 1] += '"'; i++; }
+          else { q = !q; }
+        } else if (c === ',' && !q) {
+          row.push('');
+        } else if ((c === '\r' || c === '\n') && !q) {
+          if (c === '\r' && next === '\n') { i++; }
+          r.push(row);
+          row = [''];
+        } else {
+          row[row.length - 1] += c;
+        }
+      }
+      if (row.length > 1 || row[0] !== '') r.push(row);
+      return r;
+    }
+
+    window.onload = renderCart;
+  </script>
+</body>
+</html>
