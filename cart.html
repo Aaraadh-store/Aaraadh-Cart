@@ -53,7 +53,6 @@
     
     .item-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
     
-    /* Quantity Selector Styling */
     .qty-controls {
       display: flex;
       align-items: center;
@@ -217,14 +216,15 @@
       cartItems = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
       const container = document.getElementById('cart-items-container');
       container.innerHTML = '';
+      subtotal = 0; // Reset subtotal explicitly
 
       if (cartItems.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#A0A0A0; padding:20px;">Your bag is empty.</p>';
+        discount = 0; // Reset discount when cart is empty
         updateTotals();
         return;
       }
 
-      subtotal = 0;
       cartItems.forEach((item, index) => {
         const itemTotal = item.price * item.qty;
         subtotal += itemTotal;
@@ -319,6 +319,12 @@
     async function applyCoupon() {
       const inputCode = document.getElementById('coupon-code').value.trim().toUpperCase();
       const msg = document.getElementById('coupon-msg');
+
+      if (cartItems.length === 0) {
+        msg.style.color = '#FF4D4D';
+        msg.innerText = 'Your cart is empty.';
+        return;
+      }
 
       if (!inputCode) {
         msg.style.color = '#FF4D4D';
