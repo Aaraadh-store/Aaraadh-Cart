@@ -166,7 +166,9 @@
       }
 
       try {
-        const response = await fetch(SHEET_CSV_URL);
+        // Appends timestamp to force Google Sheets to return fresh data instead of cached CSV
+        const cacheBusterUrl = SHEET_CSV_URL + '&t=' + new Date().getTime();
+        const response = await fetch(cacheBusterUrl);
         const csvText = await response.text();
         const rows = parseCSV(csvText);
         
@@ -174,8 +176,18 @@
         const skuIdx = headers.indexOf('sku');
         const nameIdx = headers.indexOf('product name');
         const priceIdx = headers.indexOf('price');
-        const colorsIdx = headers.indexOf('available colours');
-        const sizesIdx = headers.indexOf('available sizes');
+        
+        // Flexible lookup for Color header (handles 'available colours', 'available colors', or 'colors')
+        let colorsIdx = headers.indexOf('available colours');
+        if (colorsIdx === -1) colorsIdx = headers.indexOf('available colors');
+        if (colorsIdx === -1) colorsIdx = headers.indexOf('color');
+        if (colorsIdx === -1) colorsIdx = headers.indexOf('colours');
+
+        // Flexible lookup for Size header
+        let sizesIdx = headers.indexOf('available sizes');
+        if (sizesIdx === -1) sizesIdx = headers.indexOf('sizes');
+        if (sizesIdx === -1) sizesIdx = headers.indexOf('size');
+
         const allowCouponIdx = headers.indexOf('allow coupon');
         const statusIdx = headers.indexOf('status');
 
@@ -188,12 +200,12 @@
 
         productData = {
           sku: matchingRow[skuIdx].trim(),
-          title: matchingRow[nameIdx].trim(),
-          price: parseFloat(matchingRow[priceIdx].trim()),
-          colors: matchingRow[colorsIdx].split(',').map(s => s.trim()),
-          sizes: matchingRow[sizesIdx].split(',').map(s => s.trim()),
-          allowCoupon: matchingRow[allowCouponIdx].trim().toUpperCase() === 'YES',
-          status: matchingRow[statusIdx].trim().toUpperCase()
+          title: matchingRow[nameIdx] ? matchingRow[nameIdx].trim() : 'AARAADH Tee',
+          price: parseFloat(matchingRow[priceIdx] ? matchingRow[priceIdx].trim() : 0),
+          colors: (colorsIdx !== -1 && matchingRow[colorsIdx]) ? matchingRow[colorsIdx].split(',').map(s => s.trim()) : ['Black'],
+          sizes: (sizesIdx !== -1 && matchingRow[sizesIdx]) ? matchingRow[sizesIdx].split(',').map(s => s.trim()) : ['S', 'M', 'L', 'XL', 'XXL'],
+          allowCoupon: (allowCouponIdx !== -1 && matchingRow[allowCouponIdx]) ? matchingRow[allowCouponIdx].trim().toUpperCase() === 'YES' : true,
+          status: (statusIdx !== -1 && matchingRow[statusIdx]) ? matchingRow[statusIdx].trim().toUpperCase() : 'ACTIVE'
         };
 
         renderWidgetUI();
@@ -215,7 +227,7 @@
         btn.onclick = () => selectOption('color', col, btn);
         colorsContainer.appendChild(btn);
       });
-      selectedColor = productData.colors[0];
+      selectedColor = productData.colors[0] || 'Black';
 
       const sizesContainer = document.getElementById('sizes-group');
       sizesContainer.innerHTML = '';
@@ -226,7 +238,7 @@
         btn.onclick = () => selectOption('size', sz, btn);
         sizesContainer.appendChild(btn);
       });
-      selectedSize = productData.sizes[0];
+      selectedSize = productData.sizes[0] || 'M';
 
       const addBtn = document.getElementById('add-btn');
       if (productData.status === 'ACTIVE') {
