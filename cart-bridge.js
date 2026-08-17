@@ -1,4 +1,4 @@
-// cart-bridge.js — Shared LocalStorage Manager for Vercel + Google Sites
+// cart-bridge.js - Centralized LocalStorage Manager for AARAADH
 const CART_STORAGE_KEY = 'aaraadh_cart_items';
 
 // Get current cart items array
@@ -17,7 +17,7 @@ function getCartCount() {
   return items.reduce((total, item) => total + (parseInt(item.qty, 10) || 1), 0);
 }
 
-// Save updated cart to localStorage & trigger a custom update event
+// Save updated cart array and trigger global event
 function saveCartItems(items) {
   try {
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
@@ -27,7 +27,7 @@ function saveCartItems(items) {
   }
 }
 
-// Add a new product or increment quantity if already exists
+// Add item or increase quantity if item matching title, color, size exists
 function addToCart(newItem) {
   const cart = getCartItems();
   const existingIndex = cart.findIndex(
