@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AARAADH Cart Badge</title>
+  <title>AARAADH Widget</title>
   <style>
     :root {
       --bg-color: #0D0D0D;
@@ -18,7 +18,7 @@
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: transparent; color: var(--text-white); font-family: var(--font-family); padding: 5px; }
 
-    /* Floating Icon Mode */
+    /* Floating Badge Mode (No SKU in URL) */
     .floating-badge {
       display: inline-flex;
       align-items: center;
@@ -35,7 +35,7 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.6);
     }
 
-    /* Product Widget Mode */
+    /* Product Card Mode (SKU present in URL) */
     .product-widget {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
@@ -85,17 +85,17 @@
 </head>
 <body>
 
-  <!-- VIEW 1: Pure Floating Cart Icon (Shown when NO SKU is provided) -->
+  <!-- MODE 1: Floating Cart Icon (When NO ?sku=... in URL) -->
   <div id="badge-view" style="display: none; text-align: right;">
     <a href="https://aaraadh-cart.vercel.app/cart.html" target="_top" class="floating-badge">
       🛒 Bag (<span id="cart-count">0</span>)
     </a>
   </div>
 
-  <!-- VIEW 2: Full Product Form (Shown ONLY when ?sku=... is in URL) -->
+  <!-- MODE 2: Product Add-to-Bag Card (When ?sku=... in URL) -->
   <div id="product-view" class="product-widget" style="display: none;">
     <div id="loading-state" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 10px;">
-      Loading details...
+      Loading product details...
     </div>
 
     <div id="product-content" style="display: none;">
@@ -133,14 +133,18 @@
       const urlParams = new URLSearchParams(window.location.search);
       const targetSku = urlParams.get('sku');
 
-      // MODE 1: No SKU -> Display strictly as Floating Cart Badge
+      // MODE 1: No SKU parameter -> Show Floating Cart Badge
       if (!targetSku) {
         document.getElementById('badge-view').style.display = 'block';
         updateBadgeCount();
+        
+        window.addEventListener('storage', updateBadgeCount);
+        window.addEventListener('cartUpdated', updateBadgeCount);
+        setInterval(updateBadgeCount, 1000);
         return;
       }
 
-      // MODE 2: SKU Present -> Render Product Add-to-Bag UI
+      // MODE 2: SKU parameter present -> Render Product Card
       document.getElementById('product-view').style.display = 'block';
 
       try {
@@ -149,16 +153,18 @@
         const rows = parseCSV(csvText);
 
         const headers = rows[0].map(h => h.trim().toLowerCase());
+        
+        // Match exact Sheet column headers
         const skuIdx = headers.indexOf('sku');
-        const titleIdx = headers.indexOf('title');
+        const titleIdx = headers.indexOf('product name');
         const priceIdx = headers.indexOf('price');
-        const colorsIdx = headers.indexOf('colors'); 
-        const sizesIdx = headers.indexOf('sizes');   
+        const colorsIdx = headers.indexOf('available colours'); 
+        const sizesIdx = headers.indexOf('available sizes');   
 
         const matchingRow = rows.find(r => r[skuIdx] && r[skuIdx].trim().toUpperCase() === targetSku.trim().toUpperCase());
 
         if (!matchingRow) {
-          document.getElementById('loading-state').innerText = `SKU ${targetSku} not found.`;
+          document.getElementById('loading-state').innerText = '';
           return;
         }
 
@@ -166,7 +172,7 @@
 
         currentProduct = {
           sku: targetSku,
-          title: matchingRow[titleIdx] ? matchingRow[titleIdx].trim() : 'AARAADH Item',
+          title: matchingRow[titleIdx] ? matchingRow[titleIdx].trim() : '',
           price: parseFloat(matchingRow[priceIdx] || '0'),
           colors: matchingRow[colorsIdx] ? matchingRow[colorsIdx].split(',').map(s => s.trim()) : ['Black'],
           sizes: rawSizes
@@ -175,7 +181,7 @@
         renderProductUI();
 
       } catch (err) {
-        document.getElementById('loading-state').innerText = 'Failed to load inventory.';
+        document.getElementById('loading-state').innerText = '';
       }
     }
 
@@ -184,7 +190,7 @@
       document.getElementById('product-content').style.display = 'block';
 
       document.getElementById('p-title').innerText = currentProduct.title;
-      document.getElementById('p-price').innerText = `₹${currentProduct.price}`;
+      document.getElementById('p-price').innerText = currentProduct.price ? `₹${currentProduct.price}` : '';
 
       const colorSelect = document.getElementById('p-color');
       colorSelect.innerHTML = currentProduct.colors.map(c => `<option value="${c}">${c}</option>`).join('');
@@ -216,9 +222,8 @@
 
     function updateBadgeCount() {
       try {
-        const cart = JSON.parse(localStorage.getItem('aaraadh_cart')) || [];
-        const total = cart.reduce((sum, item) => sum + item.qty, 0);
-        document.getElementById('cart-count').innerText = total;
+        const count = typeof getCartCount === 'function' ? getCartCount() : 0;
+        document.getElementById('cart-count').innerText = count;
       } catch(e) {}
     }
 
