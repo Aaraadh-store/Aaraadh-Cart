@@ -132,14 +132,14 @@
 </head>
 <body>
 
-  <!-- MODE 1: Floating Cart Icon (When NO ?sku=... in URL) -->
+  <!-- MODE 1: Floating Cart Icon (Direct target="_top" navigation for Google Sites) -->
   <div id="badge-view" style="display: none; text-align: right;">
-    <div class="floating-badge" onclick="navigateToCart()">
+    <a href="https://sites.google.com/view/aaraadh/cart" target="_top" class="floating-badge">
       🛒 Bag (<span id="cart-count">0</span>)
-    </div>
+    </a>
   </div>
 
-  <!-- MODE 2: Product Add-to-Bag Card (When ?sku=... in URL) -->
+  <!-- MODE 2: Product Add-to-Bag Card -->
   <div id="product-view" class="product-widget" style="display: none;">
     <div id="loading-state" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 10px;">
       Loading product details...
@@ -179,18 +179,6 @@
     let currentProduct = null;
     let selectedColor = '';
     let selectedSize = '';
-
-    function navigateToCart() {
-      try {
-        if (window.top !== window.self) {
-          window.top.location.href = 'https://aaraadh-cart.vercel.app/cart.html';
-        } else {
-          window.location.href = 'https://aaraadh-cart.vercel.app/cart.html';
-        }
-      } catch(e) {
-        window.open('https://aaraadh-cart.vercel.app/cart.html', '_top');
-      }
-    }
 
     async function init() {
       const urlParams = new URLSearchParams(window.location.search);
