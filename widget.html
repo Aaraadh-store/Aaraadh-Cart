@@ -2,72 +2,213 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    body { margin: 0; padding: 0; background: transparent; overflow: hidden; }
-    
-    .floating-cart-btn {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      width: 56px;
-      height: 56px;
-      background-color: #D4AF37;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.6);
-      cursor: pointer;
-      text-decoration: none;
+    :root {
+      --bg-color: #0D0D0D;
+      --card-bg: #181818;
+      --accent-gold: #D4AF37;
+      --text-white: #FFFFFF;
+      --text-muted: #A0A0A0;
+      --border-color: #262626;
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     }
 
-    .cart-svg { width: 26px; height: 26px; fill: #000000; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: transparent; color: var(--text-white); font-family: var(--font-family); padding: 10px; }
 
-    .cart-badge {
-      position: absolute;
-      top: 0px;
-      right: 0px;
-      background-color: #FF4D4D;
-      color: #FFFFFF;
-      font-family: sans-serif;
-      font-size: 11px;
-      font-weight: bold;
-      height: 20px;
-      min-width: 20px;
+    .product-widget {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
       border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 0 4px;
-      border: 2px solid #0D0D0D;
+      padding: 14px;
+      max-width: 320px;
+      margin: 0 auto;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
     }
+
+    .p-title { font-size: 1rem; font-weight: bold; color: var(--text-white); margin-bottom: 4px; }
+    .p-price { font-size: 1.1rem; font-weight: bold; color: var(--accent-gold); margin-bottom: 10px; }
+
+    .option-group { margin-bottom: 10px; }
+    .option-label { font-size: 0.75rem; color: var(--text-muted); display: block; margin-bottom: 4px; text-transform: uppercase; }
+
+    select, input[type="number"] {
+      width: 100%;
+      padding: 8px;
+      background: #000;
+      border: 1px solid var(--border-color);
+      color: #FFF;
+      border-radius: 5px;
+      font-size: 0.85rem;
+      outline: none;
+    }
+    select:focus { border-color: var(--accent-gold); }
+
+    .qty-row { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .qty-row input { width: 70px; text-align: center; }
+
+    .btn-add {
+      width: 100%;
+      padding: 12px;
+      background: var(--accent-gold);
+      color: #000;
+      border: none;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn-add:hover { opacity: 0.9; }
+    .status-msg { font-size: 0.8rem; text-align: center; margin-top: 8px; color: var(--accent-gold); }
   </style>
   <script src="cart-bridge.js"></script>
 </head>
 <body>
 
-  <!-- Open full Google Sites cart page outside the iframe -->
-  <a href="https://sites.google.com/aaraadh/cart" target="_top" class="floating-cart-btn">
-      <svg class="cart-svg" viewBox="0 0 24 24">
-      <path d="M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49c.08-.14.12-.31.12-.48 0-.55-.45-1-1-1H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z"/>
-    </svg>
-    <span class="cart-badge" id="cartBadgeCount">0</span>
-  </a>
+  <div class="product-widget" id="widget-container">
+    <div id="loading-state" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 10px;">
+      Loading product details...
+    </div>
+
+    <div id="product-content" style="display: none;">
+      <div class="p-title" id="p-title"></div>
+      <div class="p-price" id="p-price"></div>
+
+      <div class="option-group">
+        <label class="option-label">Color</label>
+        <select id="p-color"></select>
+      </div>
+
+      <div class="option-group">
+        <label class="option-label">Size</label>
+        <select id="p-size"></select>
+      </div>
+
+      <div class="option-group">
+        <label class="option-label">Quantity</label>
+        <div class="qty-row">
+          <input type="number" id="p-qty" value="1" min="1" max="10">
+        </div>
+      </div>
+
+      <button class="btn-add" onclick="submitToCart()">Add to Bag</button>
+      <div class="status-msg" id="status-msg"></div>
+    </div>
+  </div>
 
   <script>
-    function syncBadge() {
-      const count = getCartCount();
-      const badge = document.getElementById('cartBadgeCount');
-      if (badge) {
-        badge.innerText = count;
-        badge.style.display = count > 0 ? 'flex' : 'none';
+    // URL containing your inventory CSV
+    const PRODUCTS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=0&single=true&output=csv';
+
+    let currentProduct = null;
+
+    async function initWidget() {
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetSku = urlParams.get('sku');
+
+      if (!targetSku) {
+        document.getElementById('loading-state').innerText = 'Error: No SKU provided in URL.';
+        return;
+      }
+
+      try {
+        const response = await fetch(PRODUCTS_CSV_URL);
+        const csvText = await response.text();
+        const rows = parseCSV(csvText);
+
+        const headers = rows[0].map(h => h.trim().toLowerCase());
+        const skuIdx = headers.indexOf('sku');
+        const titleIdx = headers.indexOf('title');
+        const priceIdx = headers.indexOf('price');
+        const colorsIdx = headers.indexOf('colors'); // Expected format: Black,White
+        const sizesIdx = headers.indexOf('sizes');   // Expected format: S,M,L,XL
+
+        const matchingRow = rows.find(r => r[skuIdx] && r[skuIdx].trim().toUpperCase() === targetSku.trim().toUpperCase());
+
+        if (!matchingRow) {
+          document.getElementById('loading-state').innerText = `Product ${targetSku} not found.`;
+          return;
+        }
+
+        currentProduct = {
+          sku: targetSku,
+          title: matchingRow[titleIdx] ? matchingRow[titleIdx].trim() : 'AARAADH Apparel',
+          price: parseFloat(matchingRow[priceIdx] || '0'),
+          colors: matchingRow[colorsIdx] ? matchingRow[colorsIdx].split(',').map(s => s.trim()) : ['Black'],
+          sizes: matchingRow[sizesIdx] ? matchingRow[sizesIdx].split(',').map(s => s.trim()) : ['S', 'M', 'L', 'XL']
+        };
+
+        renderProductUI();
+
+      } catch (err) {
+        console.error('Widget load error:', err);
+        document.getElementById('loading-state').innerText = 'Error loading product details.';
       }
     }
 
-    syncBadge();
-    window.addEventListener('storage', syncBadge);
-    window.addEventListener('cartUpdated', syncBadge);
-    setInterval(syncBadge, 1000); // Ensures live iframe synchronization
+    function renderProductUI() {
+      document.getElementById('loading-state').style.display = 'none';
+      document.getElementById('product-content').style.display = 'block';
+
+      document.getElementById('p-title').innerText = currentProduct.title;
+      document.getElementById('p-price').innerText = `₹${currentProduct.price}`;
+
+      const colorSelect = document.getElementById('p-color');
+      colorSelect.innerHTML = currentProduct.colors.map(c => `<option value="${c}">${c}</option>`).join('');
+
+      const sizeSelect = document.getElementById('p-size');
+      sizeSelect.innerHTML = currentProduct.sizes.map(s => `<option value="${s}">${s}</option>`).join('');
+    }
+
+    function submitToCart() {
+      if (!currentProduct) return;
+
+      const selectedColor = document.getElementById('p-color').value;
+      const selectedSize = document.getElementById('p-size').value;
+      const selectedQty = parseInt(document.getElementById('p-qty').value, 10) || 1;
+
+      addToCart({
+        title: currentProduct.title,
+        sku: currentProduct.sku,
+        price: currentProduct.price,
+        color: selectedColor,
+        size: selectedSize,
+        qty: selectedQty
+      });
+
+      const msg = document.getElementById('status-msg');
+      msg.innerText = '✓ Added to Bag!';
+      setTimeout(() => { msg.innerText = ''; }, 2500);
+    }
+
+    function parseCSV(text) {
+      let p = '', c = '', r = [];
+      let q = false;
+      let row = [''];
+      for (let i = 0; i < text.length; i++) {
+        c = text[i];
+        let next = text[i+1];
+        if (c === '"') {
+          if (q && next === '"') { row[row.length - 1] += '"'; i++; }
+          else { q = !q; }
+        } else if (c === ',' && !q) {
+          row.push('');
+        } else if ((c === '\r' || c === '\n') && !q) {
+          if (c === '\r' && next === '\n') { i++; }
+          r.push(row);
+          row = [''];
+        } else {
+          row[row.length - 1] += c;
+        }
+      }
+      if (row.length > 1 || row[0] !== '') r.push(row);
+      return r;
+    }
+
+    window.onload = initWidget;
   </script>
 </body>
 </html>
