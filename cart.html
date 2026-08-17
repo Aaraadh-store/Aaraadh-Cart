@@ -4,6 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AARAADH — Cart & Checkout</title>
+  
+  <!-- Shared Cart Manager -->
+  <script src="cart-bridge.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
   <style>
@@ -36,7 +39,6 @@
 
     .cart-items-list { border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 12px; }
     
-    /* Layout fixes for item alignment */
     .cart-item { 
       display: flex; 
       justify-content: space-between; 
@@ -57,7 +59,7 @@
       flex-direction: column; 
       gap: 4px; 
       flex: 1; 
-      min-width: 0; /* Prevents text overflow in flexbox */
+      min-width: 0;
       word-break: break-word;
     }
     .item-title { font-weight: 600; color: #FFF; font-size: 0.9rem; line-height: 1.2; }
@@ -108,7 +110,6 @@
     
     .remove-btn { color: #FF4D4D; cursor: pointer; font-size: 0.78rem; }
 
-    /* Mobile view structural alignment */
     @media (max-width: 480px) {
       .cart-item {
         flex-direction: column;
@@ -272,7 +273,8 @@
     let finalTotal = 0;
 
     function renderCart() {
-      cartItems = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
+      // Replaced inline JSON parse with cart-bridge getter
+      cartItems = getCartItems();
       const container = document.getElementById('cart-items-container');
       container.innerHTML = '';
       subtotal = 0;
@@ -337,7 +339,8 @@
     }
 
     function saveAndReload() {
-      localStorage.setItem('aaraadh_cart_items', JSON.stringify(cartItems));
+      // Replaced raw setItem with saveCartItems to notify parent frames
+      saveCartItems(cartItems);
       renderCart();
     }
 
@@ -537,7 +540,8 @@
     }
 
     function showThankYouScreen(orderId, email) {
-      localStorage.removeItem('aaraadh_cart_items');
+      // Clear storage via cart-bridge
+      saveCartItems([]);
 
       const cartContainer = document.querySelector('.cart-container');
       cartContainer.innerHTML = `
