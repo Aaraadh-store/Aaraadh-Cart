@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AARAADH Cart Badge</title>
   <style>
     :root {
       --bg-color: #0D0D0D;
@@ -15,8 +16,26 @@
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { background: transparent; color: var(--text-white); font-family: var(--font-family); padding: 10px; }
+    body { background: transparent; color: var(--text-white); font-family: var(--font-family); padding: 5px; }
 
+    /* Floating Icon Mode */
+    .floating-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card-bg);
+      border: 1px solid var(--accent-gold);
+      border-radius: 50px;
+      padding: 10px 16px;
+      cursor: pointer;
+      text-decoration: none;
+      color: var(--accent-gold);
+      font-weight: bold;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.6);
+    }
+
+    /* Product Widget Mode */
     .product-widget {
       background: var(--card-bg);
       border: 1px solid var(--border-color);
@@ -59,18 +78,24 @@
       font-size: 0.85rem;
       text-transform: uppercase;
       cursor: pointer;
-      transition: opacity 0.2s;
     }
-    .btn-add:hover { opacity: 0.9; }
     .status-msg { font-size: 0.8rem; text-align: center; margin-top: 8px; color: var(--accent-gold); }
   </style>
   <script src="cart-bridge.js"></script>
 </head>
 <body>
 
-  <div class="product-widget" id="widget-container">
+  <!-- VIEW 1: Pure Floating Cart Icon (Shown when NO SKU is provided) -->
+  <div id="badge-view" style="display: none; text-align: right;">
+    <a href="https://aaraadh-cart.vercel.app/cart.html" target="_top" class="floating-badge">
+      🛒 Bag (<span id="cart-count">0</span>)
+    </a>
+  </div>
+
+  <!-- VIEW 2: Full Product Form (Shown ONLY when ?sku=... is in URL) -->
+  <div id="product-view" class="product-widget" style="display: none;">
     <div id="loading-state" style="text-align: center; color: var(--text-muted); font-size: 0.85rem; padding: 10px;">
-      Loading product details...
+      Loading details...
     </div>
 
     <div id="product-content" style="display: none;">
@@ -83,7 +108,7 @@
       </div>
 
       <div class="option-group">
-        <label class="option-label">Size</label>
+        <label class="option-label">Size (Chest In Inches)</label>
         <select id="p-size"></select>
       </div>
 
@@ -100,19 +125,23 @@
   </div>
 
   <script>
-    // URL containing your inventory CSV
     const PRODUCTS_CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vQ6-wuVA5EiGfDFaBw_lZJy8wuIC6kBlVnUElGgFnKpD3M2SlZWioXrcpVeRZK4pAz0oqe1IJa6ZCuV/pub?gid=0&single=true&output=csv';
 
     let currentProduct = null;
 
-    async function initWidget() {
+    async function init() {
       const urlParams = new URLSearchParams(window.location.search);
       const targetSku = urlParams.get('sku');
 
+      // MODE 1: No SKU -> Display strictly as Floating Cart Badge
       if (!targetSku) {
-        document.getElementById('loading-state').innerText = 'Error: No SKU provided in URL.';
+        document.getElementById('badge-view').style.display = 'block';
+        updateBadgeCount();
         return;
       }
+
+      // MODE 2: SKU Present -> Render Product Add-to-Bag UI
+      document.getElementById('product-view').style.display = 'block';
 
       try {
         const response = await fetch(PRODUCTS_CSV_URL);
@@ -123,29 +152,30 @@
         const skuIdx = headers.indexOf('sku');
         const titleIdx = headers.indexOf('title');
         const priceIdx = headers.indexOf('price');
-        const colorsIdx = headers.indexOf('colors'); // Expected format: Black,White
-        const sizesIdx = headers.indexOf('sizes');   // Expected format: S,M,L,XL
+        const colorsIdx = headers.indexOf('colors'); 
+        const sizesIdx = headers.indexOf('sizes');   
 
         const matchingRow = rows.find(r => r[skuIdx] && r[skuIdx].trim().toUpperCase() === targetSku.trim().toUpperCase());
 
         if (!matchingRow) {
-          document.getElementById('loading-state').innerText = `Product ${targetSku} not found.`;
+          document.getElementById('loading-state').innerText = `SKU ${targetSku} not found.`;
           return;
         }
 
+        const rawSizes = matchingRow[sizesIdx] ? matchingRow[sizesIdx].split(',').map(s => s.trim()) : ['S(38)', 'M(40)', 'L(42)', 'XL(44)'];
+
         currentProduct = {
           sku: targetSku,
-          title: matchingRow[titleIdx] ? matchingRow[titleIdx].trim() : 'AARAADH Apparel',
+          title: matchingRow[titleIdx] ? matchingRow[titleIdx].trim() : 'AARAADH Item',
           price: parseFloat(matchingRow[priceIdx] || '0'),
           colors: matchingRow[colorsIdx] ? matchingRow[colorsIdx].split(',').map(s => s.trim()) : ['Black'],
-          sizes: matchingRow[sizesIdx] ? matchingRow[sizesIdx].split(',').map(s => s.trim()) : ['S', 'M', 'L', 'XL']
+          sizes: rawSizes
         };
 
         renderProductUI();
 
       } catch (err) {
-        console.error('Widget load error:', err);
-        document.getElementById('loading-state').innerText = 'Error loading product details.';
+        document.getElementById('loading-state').innerText = 'Failed to load inventory.';
       }
     }
 
@@ -184,6 +214,14 @@
       setTimeout(() => { msg.innerText = ''; }, 2500);
     }
 
+    function updateBadgeCount() {
+      try {
+        const cart = JSON.parse(localStorage.getItem('aaraadh_cart')) || [];
+        const total = cart.reduce((sum, item) => sum + item.qty, 0);
+        document.getElementById('cart-count').innerText = total;
+      } catch(e) {}
+    }
+
     function parseCSV(text) {
       let p = '', c = '', r = [];
       let q = false;
@@ -208,7 +246,7 @@
       return r;
     }
 
-    window.onload = initWidget;
+    window.onload = init;
   </script>
 </body>
 </html>
