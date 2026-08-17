@@ -1,44 +1,39 @@
-// cart-bridge.js - Centralized LocalStorage Manager for AARAADH
-const CART_STORAGE_KEY = 'aaraadh_cart_items';
+const CART_KEY = 'aaraadh_cart';
 
-// Get current cart items array
 function getCartItems() {
   try {
-    return JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+    const data = localStorage.getItem(CART_KEY);
+    return data ? JSON.parse(data) : [];
   } catch (e) {
-    console.error('Error reading cart state:', e);
     return [];
   }
 }
 
-// Get total count of items in cart
-function getCartCount() {
-  const items = getCartItems();
-  return items.reduce((total, item) => total + (parseInt(item.qty, 10) || 1), 0);
-}
-
-// Save updated cart array and trigger global event
-function saveCartItems(items) {
+function saveCartItems(cart) {
   try {
-    localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
+    localStorage.setItem(CART_KEY, JSON.stringify(cart));
     window.dispatchEvent(new Event('cartUpdated'));
-  } catch (e) {
-    console.error('Error saving cart state:', e);
-  }
+  } catch (e) {}
 }
 
-// Add item or increase quantity if item matching title, color, size exists
 function addToCart(newItem) {
   const cart = getCartItems();
-  const existingIndex = cart.findIndex(
-    item => item.title === newItem.title && item.size === newItem.size && item.color === newItem.color
+  const existingIndex = cart.findIndex(item => 
+    item.sku === newItem.sku && 
+    item.color === newItem.color && 
+    item.size === newItem.size
   );
 
   if (existingIndex > -1) {
-    cart[existingIndex].qty += newItem.qty || 1;
+    cart[existingIndex].qty += newItem.qty;
   } else {
-    cart.push({ ...newItem, qty: newItem.qty || 1 });
+    cart.push(newItem);
   }
 
   saveCartItems(cart);
+}
+
+function getCartCount() {
+  const cart = getCartItems();
+  return cart.reduce((sum, item) => sum + item.qty, 0);
 }
