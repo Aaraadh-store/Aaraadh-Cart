@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AARAADH — Cart & Checkout</title>
   
-  <!-- Shared Cart Manager -->
   <script src="cart-bridge.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 
@@ -273,7 +272,6 @@
     let finalTotal = 0;
 
     function renderCart() {
-      // Replaced inline JSON parse with cart-bridge getter
       cartItems = getCartItems();
       const container = document.getElementById('cart-items-container');
       container.innerHTML = '';
@@ -339,7 +337,6 @@
     }
 
     function saveAndReload() {
-      // Replaced raw setItem with saveCartItems to notify parent frames
       saveCartItems(cartItems);
       renderCart();
     }
@@ -540,7 +537,6 @@
     }
 
     function showThankYouScreen(orderId, email) {
-      // Clear storage via cart-bridge
       saveCartItems([]);
 
       const cartContainer = document.querySelector('.cart-container');
