@@ -103,6 +103,30 @@
     .btn-upi {
       display: block; width: 100%; padding: 12px; margin: 8px 0; background: var(--accent-gold); color: #000;
       font-weight: bold; text-decoration: none; border-radius: 6px; text-align: center; text-transform: uppercase;
+      font-size: 0.85rem;
+    }
+
+    .upi-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .btn-upi-sub {
+      background: #222;
+      color: var(--text-white);
+      border: 1px solid var(--border-color);
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      text-decoration: none;
+      display: block;
+      text-align: center;
+    }
+    .btn-upi-sub:hover {
+      border-color: var(--accent-gold);
+      color: var(--accent-gold);
     }
 
     form label { display: block; margin: 12px 0 4px; font-size: 0.8rem; color: var(--text-muted); }
@@ -216,11 +240,11 @@
       cartItems = JSON.parse(localStorage.getItem('aaraadh_cart_items') || '[]');
       const container = document.getElementById('cart-items-container');
       container.innerHTML = '';
-      subtotal = 0; // Reset subtotal explicitly
+      subtotal = 0;
 
       if (cartItems.length === 0) {
         container.innerHTML = '<p style="text-align:center; color:#A0A0A0; padding:20px;">Your bag is empty.</p>';
-        discount = 0; // Reset discount when cart is empty
+        discount = 0;
         updateTotals();
         return;
       }
@@ -299,13 +323,29 @@
       }
 
       const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
-      const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${BRAND_NAME}&am=${finalTotal}&cu=INR&tn=${orderId}`;
       const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
       if (isMobile) {
-        widgetContainer.innerHTML = `<a href="${upiUrl}" class="btn-upi">Pay ₹${finalTotal} via GPay / PhonePe / Paytm</a>`;
+        const upiParams = `pa=${UPI_ID}&pn=${encodeURIComponent(BRAND_NAME)}&am=${finalTotal}&cu=INR&tn=${orderId}`;
+        const genericUpiUrl = `upi://pay?${upiParams}`;
+        
+        // Deep link intents specifically for major UPI apps to bypass WhatsApp defaults
+        const gpayUrl = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.google.android.apps.nbu.paisa.user;end;`;
+        const phonepeUrl = `intent://pay?${upiParams}#Intent;scheme=upi;package=com.phonepe.app;end;`;
+        const paytmUrl = `intent://pay?${upiParams}#Intent;scheme=upi;package=net.one97.paytm;end;`;
+
+        widgetContainer.innerHTML = `
+          <a href="${genericUpiUrl}" class="btn-upi">Pay ₹${finalTotal} via Any UPI App</a>
+          <div class="upi-grid">
+            <a href="${gpayUrl}" class="btn-upi-sub">Google Pay</a>
+            <a href="${phonepeUrl}" class="btn-upi-sub">PhonePe</a>
+            <a href="${paytmUrl}" class="btn-upi-sub">Paytm</a>
+            <a href="${genericUpiUrl}" class="btn-upi-sub">Other Apps</a>
+          </div>
+        `;
       } else {
-        widgetContainer.innerHTML = `<div id="qrcode"></div><p style="margin-top:8px; font-size:0.8rem; color:#A0A0A0;">Scan using GPay / PhonePe</p>`;
+        const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(BRAND_NAME)}&am=${finalTotal}&cu=INR&tn=${orderId}`;
+        widgetContainer.innerHTML = `<div id="qrcode"></div><p style="margin-top:8px; font-size:0.8rem; color:#A0A0A0;">Scan using GPay / PhonePe / Paytm</p>`;
         new QRCode(document.getElementById("qrcode"), {
           text: upiUrl,
           width: 150,
