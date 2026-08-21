@@ -136,9 +136,14 @@
     #qrcode { display: inline-block; padding: 8px; background: #fff; border-radius: 8px; margin-top: 8px; }
     
     .btn-upi {
-      display: block; width: 100%; padding: 14px; margin: 8px 0; background: var(--accent-gold); color: #000;
+      display: block; width: 100%; padding: 12px; margin: 6px 0; background: var(--accent-gold); color: #000;
       font-weight: bold; text-decoration: none; border-radius: 6px; text-align: center; text-transform: uppercase;
-      font-size: 0.9rem; border: none; cursor: pointer;
+      font-size: 0.85rem; border: none; cursor: pointer;
+    }
+    .btn-upi.secondary {
+      background: #222;
+      color: var(--accent-gold);
+      border: 1px solid var(--accent-gold);
     }
 
     .upi-subtext {
@@ -201,7 +206,7 @@
     <div class="summary-row total"><span>Total Payable:</span><span id="total-val">₹0</span></div>
 
     <div class="payment-area">
-      <p style="font-size: 0.8rem; color: var(--text-muted);">SCAN OR TAP TO PAY EXACT AMOUNT</p>
+      <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 8px;">SELECT PAYMENT METHOD</p>
       <div id="payment-widget"></div>
     </div>
 
@@ -341,18 +346,41 @@
       }
 
       const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
-      const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-      const upiUrl = `upi://pay?pa=${UPI_ID}&pn=${encodeURIComponent(BRAND_NAME)}&am=${finalTotal}&cu=INR&tn=${orderId}`;
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+      const isIOS = /iPad|iPhone|iPod/.test(userAgent) && !window.MSStream;
+      const isAndroid = /Android/i.test(userAgent);
 
-      if (isMobile) {
+      // Base parameters
+      const upiParams = `pa=${UPI_ID}&pn=${encodeURIComponent(BRAND_NAME)}&am=${finalTotal}&cu=INR&tn=${orderId}`;
+      const standardUpiUrl = `upi://pay?${upiParams}`;
+
+      if (isIOS) {
+        // Specific deep links for iOS
+        const gpayUrl = `tez://upi/pay?${upiParams}`;
+        const phonePeUrl = `phonepe://upi/pay?${upiParams}`;
+        const paytmUrl = `paytmmp://pay?${upiParams}`;
+
         widgetContainer.innerHTML = `
-          <a href="${upiUrl}" class="btn-upi">Pay ₹${finalTotal} via Any UPI App</a>
+          <a href="${gpayUrl}" class="btn-upi">Pay via Google Pay</a>
+          <a href="${phonePeUrl}" class="btn-upi">Pay via PhonePe</a>
+          <a href="${paytmUrl}" class="btn-upi">Pay via Paytm</a>
+          <a href="${standardUpiUrl}" class="btn-upi secondary">Pay via Other UPI App</a>
+          <p class="upi-subtext">Tap to launch your preferred UPI app directly</p>
+        `;
+      } else if (isAndroid) {
+        // Android universal intent sheet button
+        widgetContainer.innerHTML = `
+          <a href="${standardUpiUrl}" class="btn-upi">Pay ₹${finalTotal} via Any UPI App</a>
           <p class="upi-subtext">Tap to launch Google Pay, PhonePe, Paytm, or CRED</p>
         `;
       } else {
-        widgetContainer.innerHTML = `<div id="qrcode"></div><p style="margin-top:8px; font-size:0.8rem; color:#A0A0A0;">Scan using GPay / PhonePe / Paytm</p>`;
+        // Desktop QR Code view
+        widgetContainer.innerHTML = `
+          <div id="qrcode"></div>
+          <p style="margin-top:8px; font-size:0.8rem; color:#A0A0A0;">Scan using GPay / PhonePe / Paytm</p>
+        `;
         new QRCode(document.getElementById("qrcode"), {
-          text: upiUrl,
+          text: standardUpiUrl,
           width: 150,
           height: 150,
           colorDark: "#000000",
