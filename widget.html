@@ -202,7 +202,9 @@
       document.getElementById('product-view').style.display = 'block';
 
       try {
-        const response = await fetch(PRODUCTS_CSV_URL);
+        // Force fresh fetch using cache-busting timestamp + no-cache headers
+        const cacheBusterUrl = PRODUCTS_CSV_URL + '&_cb=' + new Date().getTime();
+        const response = await fetch(cacheBusterUrl, { cache: 'no-store' });
         const csvText = await response.text();
         const rows = parseCSV(csvText);
 
@@ -213,11 +215,28 @@
         const priceIdx = headers.indexOf('price');
         const colorsIdx = headers.indexOf('available colours'); 
         const sizesIdx = headers.indexOf('available sizes');   
+        const statusIdx = headers.indexOf('status');
 
-        const matchingRow = rows.find(r => r[skuIdx] && r[skuIdx].trim().toUpperCase() === targetSku.trim().toUpperCase());
+        const matchingRow = rows.find(r => {
+          if (!r[skuIdx]) return false;
+          
+          const isSkuMatch = r[skuIdx].trim().toUpperCase() === targetSku.trim().toUpperCase();
+          
+          // Check Status column value
+          let isProductActive = true;
+          if (statusIdx !== -1 && r[statusIdx]) {
+            const statusVal = r[statusIdx].trim().toUpperCase();
+            if (statusVal === 'INACTIVE' || statusVal === 'OUT OF STOCK' || statusVal === 'DISABLED') {
+              isProductActive = false;
+            }
+          }
+
+          return isSkuMatch && isProductActive;
+        });
 
         if (!matchingRow) {
-          document.getElementById('loading-state').innerText = '';
+          document.getElementById('loading-state').style.color = '#FF4D4D';
+          document.getElementById('loading-state').innerText = 'This product is currently unavailable.';
           return;
         }
 
@@ -238,7 +257,8 @@
         renderProductUI();
 
       } catch (err) {
-        document.getElementById('loading-state').innerText = '';
+        document.getElementById('loading-state').style.color = '#FF4D4D';
+        document.getElementById('loading-state').innerText = 'Unable to load product.';
       }
     }
 
